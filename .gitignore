@@ -1,0 +1,4 @@
+mount/db_data
+mount/wp_data
+mount/certs
+.env

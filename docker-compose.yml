@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: wp_db
+    command: '--default-authentication-plugin=mysql_native_password'
+    volumes:
+      - ./mount/db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - 3306:3306
+    expose:
+      - 3306
+    networks:
+      - wpsite
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    volumes:
+      - ./mount/wp_data:/var/www/html
+    expose:
+      - 80
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      - wpsite
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: db
+    ports:
+      - 8081:80
+    networks:
+      - wpsite
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./mount/nginx.conf:/etc/nginx/nginx.conf
+      # - ./mount/certs:/etc/nginx/certs  # SSL 證書存放位置
+    networks:
+      - wpsite
+      
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./mount/certs:/etc/letsencrypt  # 證書存放位置
+      - ./mount/nginx.conf:/etc/nginx/nginx.conf  # Nginx 配置
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  wpsite:
+    driver: bridge
